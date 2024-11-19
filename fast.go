@@ -4,11 +4,91 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/mailru/easyjson"
+	"github.com/mailru/easyjson/jlexer"
+	"github.com/mailru/easyjson/jwriter"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 )
+
+// suppress unused package warning
+var (
+	_ *json.RawMessage
+	_ *jlexer.Lexer
+	_ *jwriter.Writer
+	_ easyjson.Marshaler
+)
+
+func easyjson8d5c760DecodeHw3Easyjson(in *jlexer.Lexer, out *User) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "browsers":
+			if in.IsNull() {
+				in.Skip()
+				out.Browsers = nil
+			} else {
+				in.Delim('[')
+				if out.Browsers == nil {
+					if !in.IsDelim(']') {
+						out.Browsers = make([]string, 0, 4)
+					} else {
+						out.Browsers = []string{}
+					}
+				} else {
+					out.Browsers = (out.Browsers)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v1 string
+					v1 = string(in.String())
+					out.Browsers = append(out.Browsers, v1)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		case "email":
+			out.Email = string(in.String())
+		case "name":
+			out.Name = string(in.String())
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *User) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson8d5c760DecodeHw3Easyjson(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *User) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson8d5c760DecodeHw3Easyjson(l, v)
+}
 
 type User struct {
 	Browsers []string `json:"browsers"`
@@ -23,24 +103,16 @@ func FastSearch(out io.Writer) {
 	}
 	defer file.Close()
 
-	var seenBrowsers = make(map[string]struct{})
+	var seenBrowsers = make(map[string]struct{}, 200)
 	uniqueBrowsers, i := 0, 0
 	foundUsers := strings.Builder{}
-
-	//fileContents, err := ioutil.ReadAll(file)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//lines := strings.Split(string(fileContents), "\n")
 
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
 		line := scanner.Text()
 		user := User{}
-		// fmt.Printf("%v %v\n", err, line)
-		if err := json.Unmarshal([]byte(line), &user); err != nil {
+		if err := easyjson.Unmarshal([]byte(line), &user); err != nil {
 			panic(err)
 		}
 
@@ -73,10 +145,8 @@ func FastSearch(out io.Writer) {
 			continue
 		}
 
-		// log.Println("Android and MSIE user:", user["name"], user["email"])
 		email := strings.Replace(user.Email, "@", " [at] ", -1)
 		foundUsers.WriteString("[" + strconv.Itoa(i) + "]" + " " + user.Name + " " + "<" + email + ">" + "\n")
-		// foundUsers += fmt.Sprintf("[%d] %s <%s>\n", i, user.Name, email)
 		i++
 	}
 
