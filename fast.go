@@ -112,7 +112,7 @@ func FastSearch(out io.Writer) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		user := User{}
-		if err := easyjson.Unmarshal([]byte(line), &user); err != nil {
+		if err := user.UnmarshalJSON([]byte(line)); err != nil {
 			panic(err)
 		}
 
